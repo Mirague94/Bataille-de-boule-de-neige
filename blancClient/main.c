@@ -17,7 +17,7 @@ int main (int argc, char **argv)
 
     int objectif=50;
     int F=0,alpha=0;
-    int etat=0;
+    int etat=0, etatAncien;
     int esquive;
     int energie;
 
@@ -56,54 +56,61 @@ int main (int argc, char **argv)
         serveurRecevoirSituation(&jeu, &moi, &adversaire, &nbBoules, boule);
         if (!(jeu.chrono % 100))
         {
-            //ne rien afficher pour l'instant.
+            printf("%d\n",etat);
         }
 
-        if (adversaire.etat == ROBOT_LANCE) etat=30;
+        if (adversaire.etat == ROBOT_LANCE)
+        {
+            etatAncien = etat;
+            etat = 30;
+        }
 
         switch (etat)
         {
         //etat pivot
         case 0 :
             serveurStopperAction();
-            if((moi.etat == ROBOT_IMMOBILE) && (moi.nbBoule == 0)) etat=01;
-            else if(moi.nbBoule == 1) etat=20;
-            else if(moi.etat == ROBOT_IMMOBILE) etat=10;
+            if((moi.etat == ROBOT_IMMOBILE) && (moi.nbBoule == 0)) etat = 1;
+            else if(moi.nbBoule == 1) etat = 20;
+            else if(moi.etat == ROBOT_IMMOBILE) etat = 10;
             break;
         //fabrication boule
-        case 01 :
+        case 1 :
             serveurStopperAction();
-            if (moi.neigeDispo > 20) etat=02;
-            else etat=05;
+            if (moi.neigeDispo > 20) etat = 2;
+            else etat = 6;
             break;
-        case 02 :
+        case 2 :
             serveurSAccroupir();
-            if(moi.etat == ROBOT_ACCROUPI) etat=3;
+            if(moi.etat == ROBOT_ACCROUPI) etat = 3;
             break;
         case 3 :
-            if (moi.neigeRassemblee>=20) serveurCompacterNeige(20);
-            else serveurRassemblerNeige();
-            if(moi.nbBoule != 0) etat=4;
+            serveurRassemblerNeige();
+            if (moi.neigeRassemblee) etat = 4;
             break;
         case 4 :
+            serveurCompacterNeige(20);
+            if(moi.nbBoule != 0) etat = 5;
+            break;
+        case 5 :
             serveurSeRelever();
-            if(moi.etat == ROBOT_IMMOBILE) etat=0;
+            if(moi.etat == ROBOT_IMMOBILE) etat = 0;
             break;
 
         //déplacement en cas de manque de neige
-        case 5 :
+        case 6 :
             serveurAvancer();
             if(moi.neigeDispo > 20) etat = 1;
-            if(moi.x >= 240) etat=6;
-            break;
-        case 6 :
-            serveurStopperAction();
-            if(moi.etat == ROBOT_IMMOBILE) etat=7;
+            if(moi.x >= 240) etat = 7;
             break;
         case 7 :
+            serveurStopperAction();
+            if(moi.etat == ROBOT_IMMOBILE) etat = 8;
+            break;
+        case 8 :
             serveurReculer();
-            if (moi.neigeDispo > 20) etat = 1;
-            if (moi.x <= 80) etat=1;
+            if (moi.neigeDispo > 20) etat = 01;
+            if (moi.x <= 80) etat = 01;
             break;
 
         //déplacement standard
@@ -129,8 +136,9 @@ int main (int argc, char **argv)
 
         //esquive de la boule de neige
         case 30 :
-            esquive=analyseLancer(boule.y, boule.vx, boule.vy, moi.x-boule.x, nbBoules, moi.x);
-            if (esquive==0) etat=0;
+            esquive=0;
+            //esquive=analyseLancer(boule.y, boule.vx, boule.vy, moi.x-boule.x, nbBoules, moi.x);
+            if (esquive==0) etat=etatAncien;
             else etat=31;
             break;
         case 31 :
@@ -139,7 +147,7 @@ int main (int argc, char **argv)
             break;
         case 32:
             serveurSAccroupir();
-            if (nbBoules == 0) etat=0;
+            if (nbBoules == 0) etat=5;
             break;
         case 33:
             serveurReculer();
@@ -179,8 +187,6 @@ double forceDeLancer (int etatAdversaire, int posmoi, int posadversaire)
     masseBoule = 0.1; //les boules ont une taille standard de 2
     energie = 0.5*masseBoule*vitesseInitial2;
     energiePourcent = energie/100;
-
-    printf("%d   %d    %f\n",posadversaire,posmoi, energie);
 
     return energiePourcent;
 
