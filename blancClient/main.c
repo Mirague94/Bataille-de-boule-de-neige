@@ -136,8 +136,7 @@ int main (int argc, char **argv)
 
         //esquive de la boule de neige
         case 30 :
-            esquive=0;
-            //esquive=analyseLancer(boule.y, boule.vx, boule.vy, moi.x-boule.x, nbBoules, moi.x);
+            esquive=analyseLancer(boule[0].y, boule[0].vx, boule[0].vy, moi.x-boule[0].x, nbBoules, moi.x);
             if (esquive==0) etat=etatAncien;
             else etat=31;
             break;
