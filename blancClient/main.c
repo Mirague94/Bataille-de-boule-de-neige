@@ -4,7 +4,7 @@
 
 #include "libClient.h"
 
-double forceDeLancer (int etatAdversaire, int posmoi, int posadversaire);
+void forceDeLancer (int etatAdversaire, int posmoi, int posadversaire, int forceLance []);
 int analyseLancer(int bouleY, int vbouleX,int vbouleY, int positionImpact, int nbBoules, int posMoi);
 
 int main (int argc, char **argv)
@@ -17,9 +17,13 @@ int main (int argc, char **argv)
 
     int objectif=50;
     int F=0,alpha=0;
+
     int etat=0, etatAncien;
+
+    int energie, angle;
+    int forceLance [2];//case 1: Energie , Case 2: Angle
+
     int esquive;
-    int energie;
 
     // adresse IP du serveur sous forme de chaine de caracteres
     char adresse[255] = "192.168.1.24";
@@ -56,10 +60,10 @@ int main (int argc, char **argv)
         serveurRecevoirSituation(&jeu, &moi, &adversaire, &nbBoules, boule);
         if (!(jeu.chrono % 100))
         {
-            printf("%d\n",etat);
+            printf("etat = %d\n",etat);
         }
 
-        if (adversaire.etat == ROBOT_LANCE)
+        if ((nbBoules>0)&&((boule[0].vx<0) ||  (boule[1].vx<0)) && (etat<30))
         {
             etatAncien = etat;
             etat = 30;
@@ -129,20 +133,24 @@ int main (int argc, char **argv)
 
         //Lancement boule
         case 20 :
-            energie = forceDeLancer (adversaire.etat, moi.x, adversaire.x);
-            serveurLancer(energie,45);
+            forceDeLancer (adversaire.etat, moi.x, adversaire.x, forceLance);
+            printf("%d  %d\n", forceLance[0], forceLance[1]);
+            energie = forceLance[0];
+            angle = forceLance[1];
+            serveurLancer(energie,angle);
             if(moi.etat == ROBOT_LANCE) etat=0;
             break;
 
         //esquive de la boule de neige
         case 30 :
             esquive=analyseLancer(boule[0].y, boule[0].vx, boule[0].vy, moi.x-boule[0].x, nbBoules, moi.x);
+            printf("etatAncien %d  esquive %d\n",etatAncien , esquive);
             if (esquive==0) etat=etatAncien;
             else etat=31;
             break;
         case 31 :
             serveurStopperAction();
-            if (moi.etat == ROBOT_IMMOBILE) etat=esquive;
+            etat=esquive;
             break;
         case 32:
             serveurSAccroupir();
@@ -168,11 +176,14 @@ int main (int argc, char **argv)
     return 0;
 }
 
-double forceDeLancer (int etatAdversaire, int posmoi, int posadversaire)
+void forceDeLancer (int etatAdversaire, int posmoi, int posadversaire, int forceLance [])
 {
     int distance, estimationX=0,estimationY=0;
-    double vitesseInitial2, masseBoule, energie,energiePourcent;
-    double angle,anglerad;
+    double vitesseInitial2, masseBoule, energie,anglerad;
+    int angle, energiePourcent;
+
+    int posMurX=512, hauteurMur=250;
+    int vitesseInitial, distanceMur, hauteurImpactMur;
 
     if (etatAdversaire=ROBOT_AVANCE) estimationX = -40;
     if (etatAdversaire=ROBOT_RECULE) estimationX =  40;
@@ -187,8 +198,24 @@ double forceDeLancer (int etatAdversaire, int posmoi, int posadversaire)
     energie = 0.5*masseBoule*vitesseInitial2;
     energiePourcent = energie/100;
 
-    return energiePourcent;
+/*    vitesseInitial = sqrt (vitesseInitial2);
+    distanceMur = posMurX;
+    hauteurImpactMur = -(5*distanceMur*distanceMur)/(vitesseInitial*cos(anglerad)*vitesseInitial*cos(anglerad))+(vitesseInitial*sin(anglerad)*distanceMur)/vitesseInitial*cos(anglerad);
 
+    if (hauteurImpactMur < hauteurMur)
+    {
+        angle = 70;
+        anglerad = angle*2.0*M_PI/360.0;
+        distance = posadversaire - posmoi + estimationX - 80; //balle lancer plus loin que le joueur
+        vitesseInitial2 = 5*distance/(cos(anglerad)*sin(anglerad));
+        if (estimationY != 0) vitesseInitial2 -= (5*distance*distance)/(estimationY*sin(anglerad)*sin(anglerad));
+        masseBoule = 0.1; //les boules ont une taille standard de 2
+        energie = 0.5*masseBoule*vitesseInitial2;
+        energiePourcent = energie/100;
+    }
+*/
+    forceLance[0] = energiePourcent;
+    forceLance[1] = angle;
 }
 
 int analyseLancer(int bouleY, int vbouleX,int vbouleY, int positionImpact, int nbBoules, int posMoi)
