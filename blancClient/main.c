@@ -4,8 +4,8 @@
 
 #include "libClient.h"
 
-double forceDeLancer ();
-int analyseLancer();
+double forceDeLancer (int etatAdversaire, int posmoi, int posadversaire);
+int analyseLancer(int bouleY, int vbouleX,int vbouleY, int positionImpact, int nbBoules, int posMoi);
 
 int main (int argc, char **argv)
 {
@@ -17,12 +17,12 @@ int main (int argc, char **argv)
 
     int objectif=50;
     int F=0,alpha=0;
-    int etat;
+    int etat=0;
     int esquive;
     int energie;
 
     // adresse IP du serveur sous forme de chaine de caracteres
-    char adresse[255] = "192.168.42.19";
+    char adresse[255] = "192.168.1.24";
     // numero du port du serveur
     int port = 1050;
 
@@ -122,14 +122,14 @@ int main (int argc, char **argv)
 
         //Lancement boule
         case 20 :
-            energie = forceDeLancer ();
+            energie = forceDeLancer (adversaire.etat, moi.x, adversaire.x);
             serveurLancer(energie,45);
             if(moi.etat == ROBOT_LANCE) etat=0;
             break;
 
         //esquive de la boule de neige
         case 30 :
-            esquive=analyseLancer();
+            esquive=analyseLancer(boule.y, boule.vx, boule.vy, moi.x-boule.x, nbBoules, moi.x);
             if (esquive==0) etat=0;
             else etat=31;
             break;
@@ -161,52 +161,34 @@ int main (int argc, char **argv)
     return 0;
 }
 
-double forceDeLancer ()
+double forceDeLancer (int etatAdversaire, int posmoi, int posadversaire)
 {
-    Jeu jeu;
-    Moi moi;
-    Adversaire adversaire;
-    int nbBoules;
-    Boule boule[BOULES_NB_MAX];
-    serveurRecevoirSituation (&jeu, &moi, &adversaire, &nbBoules, boule);
-
     int distance, estimationX=0,estimationY=0;
-    int posmoi=1,posadversaire=1;
     double vitesseInitial2, masseBoule, energie,energiePourcent;
     double angle,anglerad;
 
-    if (adversaire.etat=ROBOT_AVANCE) estimationX = -40;
-    if (adversaire.etat=ROBOT_RECULE) estimationX =  40;
-    if (adversaire.etat=ROBOT_ACCROUPI) estimationY = -100;
+    if (etatAdversaire=ROBOT_AVANCE) estimationX = -40;
+    if (etatAdversaire=ROBOT_RECULE) estimationX =  40;
+    if (etatAdversaire=ROBOT_ACCROUPI) estimationY = -100;
 
     angle = 45;
     anglerad = angle*2.0*M_PI/360.0;
-    distance = adversaire.x - moi.x + estimationX - 80; //balle lancer plus loin que le joueur
+    distance = posadversaire - posmoi + estimationX - 80; //balle lancer plus loin que le joueur
     vitesseInitial2 = 5*distance/(cos(anglerad)*sin(anglerad));
     if (estimationY != 0) vitesseInitial2 -= (5*distance*distance)/(estimationY*sin(anglerad)*sin(anglerad));
     masseBoule = 0.1; //les boules ont une taille standard de 2
     energie = 0.5*masseBoule*vitesseInitial2;
     energiePourcent = energie/100;
 
-    posadversaire = adversaire.x;
-    posmoi = moi.x;
-    printf("lancer %d   %d\n",posadversaire,posmoi);
+    printf("%d   %d    %f\n",posadversaire,posmoi, energie);
 
     return energiePourcent;
 
 }
 
-int analyseLancer()
+int analyseLancer(int bouleY, int vbouleX,int vbouleY, int positionImpact, int nbBoules, int posMoi)
 {
-    Jeu jeu;
-    Moi moi;
-    Adversaire adversaire;
-    int nbBoules;
-    Boule boule[BOULES_NB_MAX];
-    serveurRecevoirSituation (&jeu, &moi, &adversaire, &nbBoules, boule);
-
     int esquive;
-    int positionImpact, vbouleY, vbouleX;
     double hauteurImpact;
 
     if (nbBoules == 0)
@@ -215,16 +197,12 @@ int analyseLancer()
         return esquive;
     }
 
-    vbouleX = boule.vx;
-    vbouleY = boule.vy;
-    positionImpact = moi.x - boule.x;
-
-    hauteurImpact = boule.y-(5*positionImpact*positionImpact)/(vbouleY*vbouleY)+(vbouleX*positionImpact)/vbouleY;
+    hauteurImpact = bouleY-(5*positionImpact*positionImpact)/(vbouleY*vbouleY)+(vbouleX*positionImpact)/vbouleY;
 
     if (hauteurImpact > 255) esquive=0;
     else if (hauteurImpact < 0) esquive=0;
     else if (hauteurImpact < 130) esquive=32;
-    else if ((hauteurImpact > 130) && (moi.x >= 80)) esquive=33;
+    else if ((hauteurImpact > 130) && (posMoi >= 80)) esquive=33;
     else esquive=34;
 
     return esquive;
