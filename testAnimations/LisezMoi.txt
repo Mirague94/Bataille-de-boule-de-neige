@@ -1,0 +1,3 @@
+A pour changer d'animation
+B pour enlever ou remettre le bonnet
+Echap pour quitter le programme
