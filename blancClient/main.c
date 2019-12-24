@@ -6,6 +6,7 @@
 
 int repositionnement (int position, int objectif, int sousEtat);
 int CompactageNeige(char *etatRobot, int neigerassemble, int boule, int sousEtat);
+void calculeEnergieLancer(int positionMoi, int positionAdversaire, int ventX, int ventY, int hauteurMur, int forceAngleLancer[]);
 
 int main (int argc, char **argv)
 {
@@ -18,6 +19,8 @@ int main (int argc, char **argv)
     int position;
     int positionvise=170;
     int etat=1, sousEtat=0;
+    int forceAngleLancer[2];
+    int forceLancer, angleLancer;
 
      // adresse IP du serveur sous forme de chaine de caracteres
     char adresse[255] = "192.168.1.24";
@@ -72,10 +75,12 @@ int main (int argc, char **argv)
                 if (sousEtat==4) etat=0;
                 break;
             case 2: //lancement de le boule de neige
-                serveurLancer(100,45);
+                calculeEnergieLancer(moi.x, adversaire.x, jeu.ventX, jeu.ventY, jeu.hauteurMur, forceAngleLancer);
+                forceLancer=forceAngleLancer[0];
+                angleLancer=forceAngleLancer[1];
+                serveurLancer(forceLancer,angleLancer);
                 if (nbBoules==0) etat=0;
-                printf("je sais pas encore bien lancer\n");
-                break;
+            break;
             case 3: // fabrication de la boule de neige
                 sousEtat=CompactageNeige(moi.etat, moi.neigeRassemblee, moi.nbBoule, sousEtat);
                 if (sousEtat==4) etat=0;
@@ -118,7 +123,6 @@ int repositionnement (int position, int objectif, int sousEtat)
         break;
     }
 
-    printf("%d",sousEtat);
     return sousEtat;
 }
 
@@ -144,4 +148,19 @@ int CompactageNeige(char *etatRobot,int neigerassemble, int boule, int sousEtat)
     }
 
     return sousEtat;
+}
+
+void calculeEnergieLancer(int positionMoi, int positionAdversaire, int ventX, int ventY, int hauteurMur, int forceAngleLancer[])
+{
+    int distance, angle=45, energiePourcent;
+    double vitesseInitial2, vitesseInitial, energie, angleRad, masse=0.1;
+
+    distance = positionAdversaire-positionMoi - 10; //balle lancer plus loin que le joueur
+    angleRad = angle*2*M_PI/360;
+    vitesseInitial2 = 5*distance/(cos(angleRad)*sin(angleRad));
+    energie = 0.5*masse*vitesseInitial2;
+    energiePourcent = energie/10;
+    forceAngleLancer[0] = energiePourcent;
+    forceAngleLancer[1] = angle;
+    printf("%f    %d \n", energie, energiePourcent);
 }
