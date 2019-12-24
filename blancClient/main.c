@@ -3,7 +3,9 @@
 #include <math.h>
 
 #include "libClient.h"
+
 int repositionnement (int position, int objectif, int sousEtat);
+int CompactageNeige(char *etatRobot, int neigerassemble, int boule, int sousEtat);
 
 int main (int argc, char **argv)
 {
@@ -54,19 +56,34 @@ int main (int argc, char **argv)
         {
             switch(etat)
             {
-                //etat pivot
-            case 0:
-
-                //repositionnement du robot
-            case 1:
+            case 0: //etat pivot
+                sousEtat=0;
+                if (moi.nbBoule==1) etat=2;
+                else if (moi.neigeDispo>=20) etat=3;
+                else
+                {
+                    if (moi.x<380) positionvise = moi.x + 5;
+                    else positionvise=100;
+                    etat=1;
+                }
+                break;
+            case 1: //repositionnement du robot
                 sousEtat = repositionnement (moi.x, positionvise, sousEtat);
                 if (sousEtat==4) etat=0;
                 break;
-            default:
+            case 2: //lancement de le boule de neige
+                serveurLancer(100,45);
+                if (nbBoules==0) etat=0;
+                printf("je sais pas encore bien lancer\n");
+                break;
+            case 3: // fabrication de la boule de neige
+                sousEtat=CompactageNeige(moi.etat, moi.neigeRassemblee, moi.nbBoule, sousEtat);
+                if (sousEtat==4) etat=0;
+                break;
+            default: //defaut
                 etat=1;
                 break;
 
-                break;
             }
         }
 
@@ -102,5 +119,29 @@ int repositionnement (int position, int objectif, int sousEtat)
     }
 
     printf("%d",sousEtat);
+    return sousEtat;
+}
+
+int CompactageNeige(char *etatRobot,int neigerassemble, int boule, int sousEtat)
+{
+    switch (sousEtat)
+    {
+    case 0:
+        serveurSAccroupir();
+        if (etatRobot==ROBOT_ACCROUPI) sousEtat=1;
+        break;
+    case 1:
+        serveurRassemblerNeige();
+        if (neigerassemble==1) sousEtat=2;
+        break;
+    case 2:
+        serveurCompacterNeige(20);
+        if (boule==1) sousEtat=3;
+        break;
+    case 3:
+        serveurSeRelever();
+        if (etatRobot==ROBOT_IMMOBILE) sousEtat=4;
+    }
+
     return sousEtat;
 }
