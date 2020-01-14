@@ -4,9 +4,8 @@
 
 #include "libClient.h"
 
-int repositionnement (int position, int objectif, int sousEtat);
-int CompactageNeige(char *etatRobot, int neigerassemble, int boule, int sousEtat);
-void calculeEnergieLancer(int positionMoi, int positionAdversaire, int ventX, int ventY, int hauteurMur, int forceAngleLancer[]);
+void calculeEnergieLancer(int positionMoi, int positionAdversaire, int ventX, int ventY, int hauteurMur,  char *etatAdversaire, int forceAngleLancer[], int bonnet);
+int analyseLancer(int bouleVX, int bouleVY, int BouleX, int BouleY, int positionMoi, int etat, int situation);
 
 int main (int argc, char **argv)
 {
@@ -16,14 +15,13 @@ int main (int argc, char **argv)
     int nbBoules;
     Boule boule[BOULES_NB_MAX];
 
-    int position;
-    int positionvise=170;
-    int etat=1, sousEtat=0;
+    int etat=111;
     int forceAngleLancer[2];
     int forceLancer, angleLancer;
 
      // adresse IP du serveur sous forme de chaine de caracteres
-    char adresse[255] = "192.168.1.24";
+    char adresse[255] = "127.0.0.1";//adresse fixe pour le pc interne
+    //char adresse[255] = "192.168.43.37";
     // numero du port du serveur
     int port = 1050;
 
@@ -48,7 +46,7 @@ int main (int argc, char **argv)
 
     serveurNomRobot("MIRAGUE");
 
-    serveurCaracRobot(3, 3, 2, 2);
+    serveurCaracRobot(4, 4, 1, 1);
 
     serveurDemarrerMatch();
 
@@ -57,41 +55,115 @@ int main (int argc, char **argv)
         serveurRecevoirSituation(&jeu, &moi, &adversaire, &nbBoules, boule);
         if (!(jeu.chrono % 100))
         {
-            switch(etat)
-            {
-            case 0: //etat pivot
-                sousEtat=0;
-                if (moi.nbBoule==1) etat=2;
-                else if (moi.neigeDispo>=20) etat=3;
-                else
-                {
-                    if (moi.x<380) positionvise = moi.x + 5;
-                    else positionvise=100;
-                    etat=1;
-                }
-                break;
-            case 1: //repositionnement du robot
-                sousEtat = repositionnement (moi.x, positionvise, sousEtat);
-                if (sousEtat==4) etat=0;
-                break;
-            case 2: //lancement de le boule de neige
-                calculeEnergieLancer(moi.x, adversaire.x, jeu.ventX, jeu.ventY, jeu.hauteurMur, forceAngleLancer);
-                forceLancer=forceAngleLancer[0];
-                angleLancer=forceAngleLancer[1];
-                serveurLancer(forceLancer,angleLancer);
-                if (nbBoules==0) etat=0;
-            break;
-            case 3: // fabrication de la boule de neige
-                sousEtat=CompactageNeige(moi.etat, moi.neigeRassemblee, moi.nbBoule, sousEtat);
-                if (sousEtat==4) etat=0;
-                break;
-            default: //defaut
-                etat=1;
-                break;
-
-            }
+            printf("etat = %d\n",etat);
         }
 
+        if (adversaire.etat == ROBOT_LANCE)
+        {
+            etat = analyseLancer(boule[0].vx, boule[0].vy, boule[0].x, boule[0].y, moi.x, etat, moi.etat);
+            if (etat > 30)
+            {
+                if (moi.etat != ROBOT_IMMOBILE) serveurStopperAction();
+                if (moi.etat == ROBOT_ACCROUPI) serveurSeRelever();
+            }
+
+        }
+
+        switch (etat)
+        {
+        //etat pivot
+        case 0 :
+            serveurStopperAction();
+            if(moi.etat==ROBOT_IMMOBILE) etat=1;
+            break;
+        //fabrication boule
+        case 1 :
+            if (moi.neigeDispo > 20) etat=2;
+            else etat=5;
+            break;
+        case 2 :
+            serveurSAccroupir();
+            if(moi.etat == ROBOT_ACCROUPI) etat=3;
+            break;
+        case 3 :
+            if (moi.neigeDispo < 20) etat =4;
+            if (moi.neigeRassemblee==1)
+            {
+                serveurCompacterNeige(20);
+            }
+            else
+            {
+                serveurRassemblerNeige();
+            }
+            if(moi.nbBoule != 0) etat=4;
+            break;
+        case 4 :
+            serveurSeRelever();
+            if(moi.etat == ROBOT_IMMOBILE)
+            {
+                if (moi.nbBoule == 0) etat =1;
+                etat=20;
+            }
+            break;
+
+        //déplacement en cas de manque de neige
+        case 5 :
+            serveurAvancer();
+            if(moi.neigeDispo > 20) etat=0;
+            if(moi.x >= 240) etat=6;
+            break;
+        case 6 :
+            serveurStopperAction();
+            if(moi.etat == ROBOT_IMMOBILE) etat=7;
+            break;
+        case 7 :
+            serveurReculer();
+            if (moi.neigeDispo > 20) etat = 1;
+            if (moi.x <= 80) etat=5;
+            break;
+
+        //déplacement standard
+        case 8 :
+            serveurAvancer();
+            if(moi.x >= 240) etat=12;
+            break;
+        case 9 :
+            serveurStopperAction();
+            if(moi.etat == ROBOT_IMMOBILE) etat=13;
+            break;
+        case 10 :
+            serveurReculer();
+            if (moi.x <= 80)
+            {
+                etat=0;
+            }
+            break;
+
+        //Lancement boule
+        case 20 :
+            calculeEnergieLancer(moi.x, adversaire.x, jeu.ventX, jeu.ventY, jeu.hauteurMur, adversaire.etat, forceAngleLancer, adversaire.bonnet);
+            forceLancer=forceAngleLancer[0];
+            angleLancer=forceAngleLancer[1];
+            serveurLancer(forceLancer,angleLancer);
+            if(moi.etat == ROBOT_LANCE) etat=0;
+            break;
+        // esquive
+        case 31:
+            if (moi.etat == ROBOT_IMMOBILE) serveurSAccroupir();
+            if (nbBoules == 0) etat=3;
+            break;
+        case 32:
+            serveurReculer();
+
+        //etat initial
+        case 111:
+        serveurAvancer();
+        if (moi.x > 200) etat = 0;
+
+       default :
+            etat = 0;
+            break;
+        }
     }
     serveurFermer();
     printf("Serveur deconnecte\n");
@@ -99,68 +171,56 @@ int main (int argc, char **argv)
     return 0;
 }
 
-int repositionnement (int position, int objectif, int sousEtat)
+void calculeEnergieLancer(int positionMoi, int positionAdversaire, int ventX, int ventY, int hauteurMur, char *etatAdversaire, int forceAngleLancer[],int bonnet)
 {
-    switch (sousEtat)
+    int distance, angle=60, energiePourcent, estimationX=0, estimationY=0;
+    double vitesseInitial2, energie, angleRad, masse=0.1;
+
+    if (etatAdversaire==ROBOT_AVANCE) estimationX = -40;
+    if (etatAdversaire==ROBOT_RECULE) estimationX =  40;
+    if ( (etatAdversaire==ROBOT_ACCROUPI) || (etatAdversaire==ROBOT_LANCE) || (etatAdversaire==ROBOT_COMPACTE_BOULE) || (etatAdversaire==ROBOT_RASSEMBLE_NEIGE) )
     {
-    case 0:
-        serveurStopperAction();
-        if (position<objectif) sousEtat=1;
-        else if (position>objectif) sousEtat=2;
-        else if (position==objectif) sousEtat=3;
-        break;
-    case 1:
-        serveurAvancer();
-        if (position>=objectif) sousEtat=3;
-        break;
-    case 2:
-        serveurReculer();
-        if (position<=objectif) sousEtat=3;
-        break;
-    case 3:
-        serveurStopperAction();
-        sousEtat=4;
-        break;
+        estimationY = -100;
+        estimationX = -30;
     }
+    if (bonnet==1) estimationY += 75;
 
-    return sousEtat;
-}
-
-int CompactageNeige(char *etatRobot,int neigerassemble, int boule, int sousEtat)
-{
-    switch (sousEtat)
-    {
-    case 0:
-        serveurSAccroupir();
-        if (etatRobot==ROBOT_ACCROUPI) sousEtat=1;
-        break;
-    case 1:
-        serveurRassemblerNeige();
-        if (neigerassemble==1) sousEtat=2;
-        break;
-    case 2:
-        serveurCompacterNeige(20);
-        if (boule==1) sousEtat=3;
-        break;
-    case 3:
-        serveurSeRelever();
-        if (etatRobot==ROBOT_IMMOBILE) sousEtat=4;
-    }
-
-    return sousEtat;
-}
-
-void calculeEnergieLancer(int positionMoi, int positionAdversaire, int ventX, int ventY, int hauteurMur, int forceAngleLancer[])
-{
-    int distance, angle=45, energiePourcent;
-    double vitesseInitial2, vitesseInitial, energie, angleRad, masse=0.1;
-
-    distance = positionAdversaire-positionMoi - 10; //balle lancer plus loin que le joueur
+    distance = positionAdversaire-positionMoi + estimationX;
     angleRad = angle*2*M_PI/360;
-    vitesseInitial2 = 5*distance/(cos(angleRad)*sin(angleRad));
+
+    vitesseInitial2 = -10*distance*distance/(2*cos(angleRad)*(cos(angleRad)*estimationY-sin(angleRad)*distance));
+
     energie = 0.5*masse*vitesseInitial2;
     energiePourcent = energie/10;
     forceAngleLancer[0] = energiePourcent;
     forceAngleLancer[1] = angle;
-    printf("%f    %d \n", energie, energiePourcent);
+    printf("energie du lancer = %d\nAngle du lancer = %d\n", energiePourcent, angle);
+}
+
+
+int analyseLancer(int bouleVX, int bouleVY, int BouleX, int BouleY, int positionMoi, int etat, int situation)
+{
+    int positionImpact;
+    double hauteurImpact;
+
+    positionImpact = positionMoi - BouleX;
+
+    hauteurImpact = BouleY-(5*positionImpact*positionImpact)/(bouleVY*bouleVY)+(bouleVX*positionImpact)/bouleVY;
+
+    if ((etat==32) && (hauteurImpact <=175))
+    {
+        etat=0;
+    }
+
+    if (hauteurImpact < 270)
+    {
+        if (hauteurImpact > 140)
+        {
+            if ((situation == ROBOT_COMPACTE_BOULE) || (situation == ROBOT_ACCROUPI) || (situation == ROBOT_S_ACCROUPI) || (situation == ROBOT_RASSEMBLE_NEIGE));
+            else etat = 31;
+        }
+        else if (positionMoi >= 80) etat=32;
+    }
+
+    return etat;
 }
