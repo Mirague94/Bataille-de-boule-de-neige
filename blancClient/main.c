@@ -61,12 +61,6 @@ int main (int argc, char **argv)
         if (adversaire.etat == ROBOT_LANCE)
         {
             etat = analyseLancer(boule[0].vx, boule[0].vy, boule[0].x, boule[0].y, moi.x, etat, moi.etat);
-            if (etat > 30)
-            {
-                if (moi.etat != ROBOT_IMMOBILE) serveurStopperAction();
-                if (moi.etat == ROBOT_ACCROUPI) serveurSeRelever();
-            }
-
         }
 
         switch (etat)
@@ -141,19 +135,25 @@ int main (int argc, char **argv)
 
         //Lancement boule
         case 20 :
+            serveurNeRienChanger();
+            if (!((adversaire.etat == ROBOT_AVANCE) || (adversaire.etat == ROBOT_IMMOBILE) || (adversaire.etat == ROBOT_RECULE) || (adversaire.etat == ROBOT_SE_RELEVE))) etat = 21;
+        case 21 :
             calculeEnergieLancer(moi.x, adversaire.x, jeu.ventX, jeu.ventY, jeu.hauteurMur, adversaire.etat, forceAngleLancer, adversaire.bonnet);
             forceLancer=forceAngleLancer[0];
             angleLancer=forceAngleLancer[1];
             serveurLancer(forceLancer,angleLancer);
-            if(moi.etat == ROBOT_LANCE) etat=0;
+            etat=0;
             break;
+
         // esquive
         case 31:
-            if (moi.etat == ROBOT_IMMOBILE) serveurSAccroupir();
-            if (nbBoules == 0) etat=3;
+            serveurStopperAction();
+            if (moi.etat == ROBOT_IMMOBILE) etat=32;
             break;
         case 32:
-            serveurReculer();
+            serveurSAccroupir();
+            if (nbBoules==0) etat = 3;
+            break;
 
         //etat initial
         case 111:
@@ -173,19 +173,13 @@ int main (int argc, char **argv)
 
 void calculeEnergieLancer(int positionMoi, int positionAdversaire, int ventX, int ventY, int hauteurMur, char *etatAdversaire, int forceAngleLancer[],int bonnet)
 {
-    int distance, angle=60, energiePourcent, estimationX=0, estimationY=0;
+    int distance, angle=60, energiePourcent, estimationX=-50, estimationY=-100;
     double vitesseInitial2, energie, angleRad, masse=0.1;
 
-    if (etatAdversaire==ROBOT_AVANCE) estimationX = -40;
-    if (etatAdversaire==ROBOT_RECULE) estimationX =  40;
-    if ( (etatAdversaire==ROBOT_ACCROUPI) || (etatAdversaire==ROBOT_LANCE) || (etatAdversaire==ROBOT_COMPACTE_BOULE) || (etatAdversaire==ROBOT_RASSEMBLE_NEIGE) )
-    {
-        estimationY = -100;
-        estimationX = -30;
-    }
     if (bonnet==1) estimationY += 75;
 
-    distance = positionAdversaire-positionMoi + estimationX;
+    distance = positionAdversaire - positionMoi + estimationX;
+    if (distance < 200) distance -= 75;
     angleRad = angle*2*M_PI/360;
 
     vitesseInitial2 = -10*distance*distance/(2*cos(angleRad)*(cos(angleRad)*estimationY-sin(angleRad)*distance));
@@ -214,13 +208,20 @@ int analyseLancer(int bouleVX, int bouleVY, int BouleX, int BouleY, int position
 
     if (hauteurImpact < 270)
     {
-        if (hauteurImpact > 140)
+        if (hauteurImpact > 150)
         {
             if ((situation == ROBOT_COMPACTE_BOULE) || (situation == ROBOT_ACCROUPI) || (situation == ROBOT_S_ACCROUPI) || (situation == ROBOT_RASSEMBLE_NEIGE));
             else etat = 31;
         }
-        else if (positionMoi >= 80) etat=32;
+        else
+        {
+            if ((situation == ROBOT_COMPACTE_BOULE) || (situation == ROBOT_ACCROUPI) || (situation == ROBOT_S_ACCROUPI) || (situation == ROBOT_RASSEMBLE_NEIGE))
+            {
+                serveurStopperAction();
+                serveurSeRelever();
+                etat = 20;
+            }
+        }
     }
-
     return etat;
 }
