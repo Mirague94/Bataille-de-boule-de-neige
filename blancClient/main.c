@@ -182,13 +182,13 @@ void calculeEnergieLancer(int positionMoi, int positionAdversaire, int ventX, in
     if (distance < 200) distance -= 75;
     angleRad = angle*2*M_PI/360;
 
-    vitesseInitial2 = -10*distance*distance/(2*cos(angleRad)*(cos(angleRad)*estimationY-sin(angleRad)*distance));
+    vitesseInitial2 = -10*distance*distance/(2*cos(angleRad)*(cos(angleRad)*estimationY-sin(angleRad)*distance)) - ventX;
 
     energie = 0.5*masse*vitesseInitial2;
     energiePourcent = energie/10;
     forceAngleLancer[0] = energiePourcent;
     forceAngleLancer[1] = angle;
-    printf("energie du lancer = %d\nAngle du lancer = %d\n", energiePourcent, angle);
+    printf("Vitesse du lancer = %.2f\n", vitesseInitial2);
 }
 
 
