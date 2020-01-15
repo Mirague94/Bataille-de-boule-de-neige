@@ -5,7 +5,7 @@
 #include "libClient.h"
 
 void calculeEnergieLancer(int positionMoi, int positionAdversaire, int ventX, int ventY, int hauteurMur,  char *etatAdversaire, int forceAngleLancer[], int bonnet);
-int analyseLancer(int bouleVX, int bouleVY, int BouleX, int BouleY, int positionMoi, int etat, int situation);
+int analyseLancer(int bouleVX, int bouleVY, int BouleX, int BouleY, int positionMoi, int etat, int situation, int ventX);
 
 int main (int argc, char **argv)
 {
@@ -15,7 +15,7 @@ int main (int argc, char **argv)
     int nbBoules;
     Boule boule[BOULES_NB_MAX];
 
-    int etat=111;
+    int etat=0;
     int forceAngleLancer[2];
     int forceLancer, angleLancer;
 
@@ -60,7 +60,7 @@ int main (int argc, char **argv)
 
         if (adversaire.etat == ROBOT_LANCE)
         {
-            etat = analyseLancer(boule[0].vx, boule[0].vy, boule[0].x, boule[0].y, moi.x, etat, moi.etat);
+            etat = analyseLancer(boule[0].vx, boule[0].vy, boule[0].x, boule[0].y, moi.x, etat, moi.etat, jeu.ventX);
         }
 
         switch (etat)
@@ -155,11 +155,6 @@ int main (int argc, char **argv)
             if (nbBoules==0) etat = 3;
             break;
 
-        //etat initial
-        case 111:
-        serveurAvancer();
-        if (moi.x > 200) etat = 0;
-
        default :
             etat = 0;
             break;
@@ -173,8 +168,11 @@ int main (int argc, char **argv)
 
 void calculeEnergieLancer(int positionMoi, int positionAdversaire, int ventX, int ventY, int hauteurMur, char *etatAdversaire, int forceAngleLancer[],int bonnet)
 {
-    int distance, angle=60, energiePourcent, estimationX=-50, estimationY=-100;
+    int distance, angle=30, energiePourcent, estimationX=-50, estimationY=-100;
     double vitesseInitial2, energie, angleRad, masse=0.1;
+
+    if (positionAdversaire <= 800) angle = 45;
+    if (positionAdversaire <= 700) angle = 60;
 
     if (bonnet==1) estimationY += 75;
 
@@ -192,7 +190,7 @@ void calculeEnergieLancer(int positionMoi, int positionAdversaire, int ventX, in
 }
 
 
-int analyseLancer(int bouleVX, int bouleVY, int BouleX, int BouleY, int positionMoi, int etat, int situation)
+int analyseLancer(int bouleVX, int bouleVY, int BouleX, int BouleY, int positionMoi, int etat, int situation, int ventX)
 {
     int positionImpact;
     double hauteurImpact;
@@ -223,5 +221,6 @@ int analyseLancer(int bouleVX, int bouleVY, int BouleX, int BouleY, int position
             }
         }
     }
+    printf("Hauteur Impact = %.0f\n", hauteurImpact);
     return etat;
 }
